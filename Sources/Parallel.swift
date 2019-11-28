@@ -53,6 +53,7 @@ public class UnfairLock {
 }
 
 /// A wrapper for data to be shared across threads
+@available(OSX 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *)
 public class Synchronized<Wrapped>: UnfairLock {
     private var data: Wrapped
 
@@ -62,6 +63,29 @@ public class Synchronized<Wrapped>: UnfairLock {
 
     public func synchronized<T>(_ body: (inout Wrapped) throws -> T) rethrows -> T {
         return try around { try body(&self.data) }
+    }
+}
+
+/// Simple synchronized cache
+@available(OSX 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *)
+public class Cached<Key: Hashable,Value>: Synchronized<[Key: Value]> {
+
+    let getter: (Key) -> Value
+
+    public init(getter: @escaping (Key) -> Value) {
+        self.getter = getter
+        super.init([Key: Value]())
+    }
+
+    public func get(key: Key) -> Value {
+        return synchronized { data in
+            var value = data[key]
+            if value == nil {
+                value = getter(key)
+                data[key] = value
+            }
+            return value!
+        }
     }
 }
 

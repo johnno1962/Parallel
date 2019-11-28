@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "Parallel",
-    platforms: [.macOS("10.12")],
+    platforms: [.macOS("10.12"), .iOS("10.0")],
     products: [
         .library(name: "Parallel", targets: ["Parallel"]),
     ],
