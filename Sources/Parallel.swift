@@ -52,7 +52,7 @@ public class UnfairLock {
     }
 }
 
-/// A wrapper for data to be shared across threads
+/// A wrapper for data to that is mutable across threads.
 @available(OSX 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *)
 public class Synchronized<Wrapped>: UnfairLock {
     private var data: Wrapped
@@ -61,6 +61,9 @@ public class Synchronized<Wrapped>: UnfairLock {
         self.data = data
     }
 
+    /// Access to wrapped data after taking out a lock on it.
+    ///
+    /// - Parameter body: closure executed while wrapped data is locked
     public func synchronized<T>(_ body: (inout Wrapped) throws -> T) rethrows -> T {
         return try around { try body(&self.data) }
     }
@@ -68,23 +71,30 @@ public class Synchronized<Wrapped>: UnfairLock {
 
 /// Simple synchronized cache
 @available(OSX 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *)
-public class Cached<Key: Hashable,Value>: Synchronized<[Key: Value]> {
+public class Cached<Key: Hashable, Value>: Synchronized<[Key: Value]> {
 
-    let getter: (Key) -> Value
+    private let getter: (Key) -> Value
 
+    /// Initializer
+    ///
+    /// - Parameter getter: a closure used when key is not already cached.
     public init(getter: @escaping (Key) -> Value) {
         self.getter = getter
         super.init([Key: Value]())
     }
 
-    public func get(key: Key) -> Value {
+    /// Get value for key, opulating if necessary
+    ///
+    /// - Parameter key: key of cache to fetch/generate value
+    public final func get(key: Key) -> Value {
         return synchronized { data in
-            var value = data[key]
-            if value == nil {
-                value = getter(key)
-                data[key] = value
+            if let value = data[key] {
+                return value
             }
-            return value!
+
+            let value = getter(key)
+            data[key] = value
+            return value
         }
     }
 }
