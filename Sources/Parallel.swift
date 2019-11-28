@@ -6,7 +6,7 @@
 //  Copyright © 2019 John Holdsworth. All rights reserved.
 //
 
-import Dispatch
+import Foundation
 
 /// Wrapper for os_unfair_lock mutex primitve from the
 /// project: https://github.com/Alamofire/Alamofire
@@ -71,16 +71,20 @@ public class Synchronized<Wrapped>: UnfairLock {
 
 /// Simple synchronized cache
 @available(OSX 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *)
-public class Cached<Key: Hashable, Value>: Synchronized<[Key: Value]> {
+public class Cached<Key: Hashable, Value>:
+        Synchronized<[Key: (expires: TimeInterval, value: Value)]> {
 
     private let getter: (Key) -> Value
+    private let lifetime: TimeInterval?
 
     /// Initializer
     ///
     /// - Parameter getter: a closure used when key is not already cached.
-    public init(getter: @escaping (Key) -> Value) {
+    /// - Parameter lifetime: Number of seconds value will be cached.
+    public init(getter: @escaping (Key) -> Value, lifetime: TimeInterval? = nil) {
         self.getter = getter
-        super.init([Key: Value]())
+        self.lifetime = lifetime
+        super.init([Key: (TimeInterval, Value)]())
     }
 
     /// Get value for key, opulating if necessary
@@ -88,12 +92,15 @@ public class Cached<Key: Hashable, Value>: Synchronized<[Key: Value]> {
     /// - Parameter key: key of cache to fetch/generate value
     public final func get(key: Key) -> Value {
         return synchronized { data in
-            if let value = data[key] {
-                return value
+            let now = Date.timeIntervalSinceReferenceDate
+            if let cached = data[key], now < cached.expires {
+                return cached.value
             }
 
             let value = getter(key)
-            data[key] = value
+            let expires = lifetime != nil ? now + lifetime! :
+                Date.distantFuture.timeIntervalSinceReferenceDate
+            data[key] = (expires, value)
             return value
         }
     }
