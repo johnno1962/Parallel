@@ -9,4 +9,6 @@ the processing of parcels of work across multiple threads/processors.
 
 * Synchronized - a wrapper for entities which are shared across threads.
 
+* Cached - An optionally expiring thread safe cache.
+
 * concurrentMap - a member of the map family which distributes work across processors.
